@@ -1,0 +1,40 @@
+Step 1 — Install NVM for Windows
+
+Go to: https://github.com/coreybutler/nvm-windows/releases
+Download nvm-setup.exe (latest release)
+Run the installer → click Next → Finish
+Close your terminal completely and reopen it
+
+
+Step 2 — Install Node.js via NVM for Windows
+nvm install 18
+nvm use 18
+node --version
+npm --version
+
+Step 3 — Install PostgreSQL on Windows
+
+Go to: https://www.postgresql.org/download/windows/
+Click "Download the installer" → pick version 16 → Windows x86-64
+Run the installer:
+
+Port: 5432 (default)
+Set a password for user postgres — F@st1234
+Keep pgAdmin checked ✅
+
+
+Finish installation
+
+
+To run the app:
+->Start the Backend
+cmdcd C:\Users\Aafrren Mughal\Desktop\fraudd\backend
+npm install
+npm run seed
+npm run dev
+
+->Start the Frontend
+Open a second Command Prompt window:
+cmdcd C:\Users\Aafrren Mughal\Desktop\fraudd\frontend
+npm install
+npm start
