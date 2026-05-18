@@ -1,0 +1,79 @@
+name: Nightly Tasks
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 2:00 AM UTC every night
+  workflow_dispatch:        # allow manual trigger
+
+jobs:
+  # ─── Nightly dependency update check ───────────
+  dependency-check:
+    name: 📦 Dependency Updates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Check for outdated backend packages
+        run: |
+          cd backend && npm ci
+          echo "### Backend Outdated Packages:" >> $GITHUB_STEP_SUMMARY
+          npm outdated --json || true
+
+      - name: Check for outdated frontend packages
+        run: |
+          cd frontend && npm ci
+          echo "### Frontend Outdated Packages:" >> $GITHUB_STEP_SUMMARY
+          npm outdated --json || true
+
+  # ─── Nightly full security scan ─────────────────
+  security-scan:
+    name: 🔒 Deep Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy full scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          format: 'table'
+        continue-on-error: true
+
+      - name: Backend deep audit
+        run: cd backend && npm ci && npm audit
+        continue-on-error: true
+
+      - name: Frontend deep audit
+        run: cd frontend && npm ci && npm audit
+        continue-on-error: true
+
+  # ─── Nightly production health check ────────────
+  health-check:
+    name: 💓 Production Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check API health
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://fraudshield.io/api/health || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ API is healthy (HTTP $STATUS)"
+          else
+            echo "❌ API health check failed (HTTP $STATUS)"
+            exit 1
+          fi
+        continue-on-error: true
+
+      - name: Notify on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: '{"text":"🔴 *FraudShield Production Health Check FAILED* — Please investigate immediately!"}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true

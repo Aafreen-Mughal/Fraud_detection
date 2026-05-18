@@ -1,21 +1,61 @@
-# Dependencies
+# ═══════════════════════════════════════════
+#   FraudShield — .gitignore
+# ═══════════════════════════════════════════
+
+# ─── Dependencies ───────────────────────────
 node_modules/
 backend/node_modules/
 frontend/node_modules/
+.npm
 
-# Environment
+# ─── Environment Files (NEVER commit) ───────
 .env
+.env.local
+.env.production
+.env.staging
 backend/.env
 frontend/.env
 
-# ML files (too large)
+# ─── Build Outputs ──────────────────────────
+frontend/build/
+backend/dist/
+coverage/
+
+# ─── Logs ───────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+
+# ─── OS Files ───────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Editor ─────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Docker ─────────────────────────────────
+.dockerignore
+
+# ─── SSL Certificates ───────────────────────
+nginx/ssl/
+*.pem
+*.key
+*.crt
+
+# ─── Database Backups ───────────────────────
+/backups/
+*.sql.gz
+
+# ─── ML / Python ────────────────────────────
 ml_api/creditcard.csv
 ml_api/fraud_model.pkl
 ml_api/__pycache__/
 ml_api/*.pyc
+*.pyc
+__pycache__/
 
-# Logs
-*.log
-frontend/build/
-.DS_Store
-Thumbs.db
+# ─── Test Artifacts ─────────────────────────
+/tmp/
