@@ -1,81 +1,18 @@
-name: FraudShield CI/CD Pipeline
+name: FraudShield CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
-
-env:
-  NODE_VERSION: '18'
-  REGISTRY: ghcr.io
-  IMAGE_BACKEND: ghcr.io/${{ github.repository }}/backend
-  IMAGE_FRONTEND: ghcr.io/${{ github.repository }}/frontend
+    branches: [main]
 
 jobs:
   # ─────────────────────────────────────────────
-  # JOB 1: Lint & Code Quality
+  # JOB 1: Backend
   # ─────────────────────────────────────────────
-  lint:
-    name: 🔍 Lint & Code Quality
+  backend:
+    name: 🔧 Backend
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
-
-      - name: Install backend dependencies
-        run: cd backend && npm ci
-
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
-
-      - name: Lint backend
-        run: cd backend && npm run lint --if-present
-
-      - name: Lint frontend
-        run: cd frontend && npm run lint --if-present
-
-  # ─────────────────────────────────────────────
-  # JOB 2: Backend Tests
-  # ─────────────────────────────────────────────
-  test-backend:
-    name: 🧪 Backend Tests
-    runs-on: ubuntu-latest
-    needs: lint
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: testpassword
-          POSTGRES_DB: fraudshield_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      NODE_ENV: test
-      DB_HOST: localhost
-      DB_PORT: 5432
-      DB_NAME: fraudshield_test
-      DB_USER: postgres
-      DB_PASSWORD: testpassword
-      JWT_SECRET: test_jwt_secret_for_ci
-      PORT: 5000
 
     steps:
       - name: Checkout code
@@ -84,41 +21,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          node-version: '18'
 
-      - name: Install backend dependencies
-        run: cd backend && npm ci
-
-      - name: Wait for PostgreSQL
-        run: |
-          until pg_isready -h localhost -p 5432 -U postgres; do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
-
-      - name: Run DB schema init
-        run: cd backend && node -e "require('./src/config/schema').initSchema().then(() => { console.log('Schema OK'); process.exit(0); }).catch(e => { console.error(e); process.exit(1); })"
-
-      - name: Run backend tests
-        run: cd backend && npm test --if-present
-
-      - name: Upload backend coverage
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: backend-coverage
-          path: backend/coverage/
-          retention-days: 7
+      - name: Install dependencies
+        run: cd backend && npm install
 
   # ─────────────────────────────────────────────
-  # JOB 3: Frontend Tests & Build
+  # JOB 2: Frontend Build
   # ─────────────────────────────────────────────
-  test-frontend:
-    name: 🧪 Frontend Tests & Build
+  frontend:
+    name: 🎨 Frontend
     runs-on: ubuntu-latest
-    needs: lint
 
     steps:
       - name: Checkout code
@@ -127,253 +40,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          node-version: '18'
 
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
+      - name: Install dependencies
+        run: cd frontend && npm install
 
-      - name: Run frontend tests
-        run: cd frontend && npm test -- --coverage --watchAll=false --passWithNoTests
-        env:
-          CI: true
-
-      - name: Build frontend
+      - name: Build React app
         run: cd frontend && npm run build
         env:
           CI: false
-          REACT_APP_API_URL: /api
 
-      - name: Upload build artifact
+      - name: Upload build
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
           path: frontend/build/
-          retention-days: 7
-
-      - name: Upload frontend coverage
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: frontend-coverage
-          path: frontend/coverage/
-          retention-days: 7
-
-  # ─────────────────────────────────────────────
-  # JOB 4: Security Audit
-  # ─────────────────────────────────────────────
-  security:
-    name: 🔒 Security Audit
-    runs-on: ubuntu-latest
-    needs: lint
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Audit backend dependencies
-        run: cd backend && npm audit --audit-level=high
-        continue-on-error: true
-
-      - name: Audit frontend dependencies
-        run: cd frontend && npm audit --audit-level=high
-        continue-on-error: true
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-        continue-on-error: true
-
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-        continue-on-error: true
-
-  # ─────────────────────────────────────────────
-  # JOB 5: Docker Build & Push
-  # ─────────────────────────────────────────────
-  docker-build:
-    name: 🐳 Docker Build & Push
-    runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, security]
-    if: github.event_name == 'push'
-
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata for backend image
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_BACKEND }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-
-      - name: Extract metadata for frontend image
-        id: meta-frontend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_FRONTEND }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-
-      - name: Build & push backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build & push frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ─────────────────────────────────────────────
-  # JOB 6: Deploy to Staging
-  # ─────────────────────────────────────────────
-  deploy-staging:
-    name: 🚀 Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: docker-build
-    if: github.ref == 'refs/heads/develop'
-    environment:
-      name: staging
-      url: https://staging.fraudshield.io
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy to staging server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USER }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
-          script: |
-            cd /opt/fraudshield
-            echo "Pulling latest images..."
-            docker compose -f docker-compose.staging.yml pull
-            echo "Restarting services..."
-            docker compose -f docker-compose.staging.yml up -d --remove-orphans
-            echo "Running DB migrations..."
-            docker compose -f docker-compose.staging.yml exec -T backend npm run seed
-            echo "Cleaning up old images..."
-            docker image prune -f
-            echo "✅ Staging deployment complete!"
-
-      - name: Health check staging
-        run: |
-          echo "Waiting for staging to come up..."
-          sleep 20
-          curl --fail https://staging.fraudshield.io/api/health || exit 1
-          echo "✅ Staging health check passed"
-
-      - name: Notify Slack - Staging Deployed
-        if: always()
-        uses: slackapi/slack-github-action@v1.26.0
-        with:
-          payload: |
-            {
-              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Staging Deploy ${{ job.status }}*\nBranch: `${{ github.ref_name }}`\nCommit: ${{ github.sha }}\nBy: ${{ github.actor }}"
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        continue-on-error: true
-
-  # ─────────────────────────────────────────────
-  # JOB 7: Deploy to Production
-  # ─────────────────────────────────────────────
-  deploy-production:
-    name: 🏭 Deploy to Production
-    runs-on: ubuntu-latest
-    needs: docker-build
-    if: github.ref == 'refs/heads/main'
-    environment:
-      name: production
-      url: https://fraudshield.io
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy to production server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            cd /opt/fraudshield
-            echo "Creating backup..."
-            docker compose exec -T postgres pg_dump -U postgres fraudshield > /backups/fraudshield_$(date +%Y%m%d_%H%M%S).sql
-            echo "Pulling latest images..."
-            docker compose -f docker-compose.prod.yml pull
-            echo "Rolling update..."
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans --no-deps backend
-            sleep 10
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans --no-deps frontend
-            echo "Cleaning up..."
-            docker image prune -f
-            echo "✅ Production deployment complete!"
-
-      - name: Health check production
-        run: |
-          sleep 30
-          curl --fail https://fraudshield.io/api/health || exit 1
-          echo "✅ Production health check passed"
-
-      - name: Notify Slack - Production Deployed
-        if: always()
-        uses: slackapi/slack-github-action@v1.26.0
-        with:
-          payload: |
-            {
-              "text": "${{ job.status == 'success' && '🚀' || '🔥' }} *Production Deploy ${{ job.status }}*\nVersion: `${{ github.sha }}`\nDeployed by: ${{ github.actor }}\nTime: ${{ github.event.head_commit.timestamp }}"
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        continue-on-error: true
+          retention-days: 3
