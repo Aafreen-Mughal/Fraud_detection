@@ -3,7 +3,11 @@
 A full-stack fraud detection platform built with React, Node.js, PostgreSQL, and Machine Learning.
 Based on the [PaySim Financial Fraud Dataset](https://www.kaggle.com/code/eshummalik/fraud-detection).
 
-Project Structure
+---
+
+## 📁 Project Structure
+
+```
 fraudd/
 ├── backend/          → Node.js + Express API
 ├── frontend/         → React.js Web App
@@ -13,8 +17,11 @@ fraudd/
 ├── .github/          → CI/CD Pipeline
 ├── docker-compose.yml
 └── README.md
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Prerequisites
+```
+
+---
+
+## ⚙️ Prerequisites
 
 Make sure these are installed before starting:
 
@@ -25,7 +32,7 @@ Make sure these are installed before starting:
 | PostgreSQL | v14+ | https://postgresql.org |
 | Git | latest | https://git-scm.com |
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 ## 🗄️ Step 1 — Setup PostgreSQL Database
 
@@ -44,7 +51,7 @@ CREATE DATABASE fraudshield;
 ```
 
 ---
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 ## 🔧 Step 2 — Run the Backend
 
 ### Navigate to backend folder
@@ -103,7 +110,7 @@ You should see:
 ```
 
 ---
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 ## 🎨 Step 3 — Run the Frontend
 
 Open a **new terminal window** (keep backend running)
@@ -119,9 +126,9 @@ npm install
 ```
 
 ### Start the React app
-cmd
+```cmd
 npm start
-
+```
 
 ### ✅ Frontend is running at
 ```
@@ -163,11 +170,16 @@ pip install -r requirements.txt
 ```
 
 ### Start the ML API server
-cmd
+```cmd
 python app.py
+```
 
 ### ✅ ML API is running at
+```
 http://localhost:8000
+```
+
+---
 
 ## 🔑 Demo Login Accounts
 
@@ -177,16 +189,21 @@ http://localhost:8000
 | **Analyst** | fatima@demo.com | Demo@123 |
 | **User** | sarah@demo.com | Demo@123 |
 
+---
 
 ## 🖥️ All Three Terminals at Once
+
+```
 Terminal 1 (Backend)         Terminal 2 (Frontend)        Terminal 3 (ML API)
 ─────────────────────        ──────────────────────       ──────────────────
 cd fraudd/backend            cd fraudd/frontend           cd fraudd/ml_api
 npm run dev                  npm start                    python app.py
 
 ✅ localhost:5000             ✅ localhost:3000             ✅ localhost:8000
+```
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+
 ## 🚀 Pages & Features
 
 | Page | URL | Description |
@@ -201,9 +218,14 @@ npm run dev                  npm start                    python app.py
 | Accounts | `/accounts` | Manage accounts |
 | Help | `/help` | FAQ & documentation |
 | Admin | `/admin` | Admin panel (admin only) |
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-##  CI/CD Pipeline
+
+---
+
+## 🔁 CI/CD Pipeline
+
 Powered by **GitHub Actions** — runs automatically on every push to `main`.
+
+```
 git push → GitHub Actions triggers
               ↓
         🔧 Backend Job     🎨 Frontend Job
@@ -211,9 +233,75 @@ git push → GitHub Actions triggers
                            npm run build
               ↓
         ✅ Green = Safe    ❌ Red = Fix it
+```
+
 View pipeline: `https://github.com/YOUR_USERNAME/Fraud_detection/actions`
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-Tech Stack
+
+---
+
+## 🐳 Run with Docker (Optional)
+
+If you have Docker installed, run everything with one command:
+
+```cmd
+docker compose up
+```
+
+This starts PostgreSQL, Backend, and Frontend all together.
+
+To stop:
+```cmd
+docker compose down
+```
+
+---
+
+## ❗ Common Errors & Fixes
+
+### Backend won't start
+```
+Error: connect ECONNREFUSED 127.0.0.1:5432
+```
+**Fix:** PostgreSQL is not running.
+- Windows: Search **Services** → find **postgresql-x64-16** → Start
+
+---
+
+### npm run seed fails
+```
+Error: relation "users" does not exist
+```
+**Fix:** Check your `.env` DB credentials match your PostgreSQL password.
+
+---
+
+### Frontend shows blank page
+**Fix:** Make sure backend is running on port 5000 FIRST, then start frontend.
+
+---
+
+### Port 5000 already in use (Mac)
+**Fix:** Mac uses port 5000 for AirPlay. Change in `.env`:
+```env
+PORT = 5001
+```
+And in `frontend/package.json`:
+```json
+"proxy": "http://localhost:5001"
+```
+
+---
+
+### ML API error: No module named flask
+**Fix:** Make sure virtual environment is activated:
+```cmd
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+---
+
+## 📦 Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -225,6 +313,10 @@ Tech Stack
 | DevOps | GitHub Actions CI/CD |
 | Proxy | Nginx |
 | Container | Docker |
+
+---
+
+## 👤 Author
 
 **Aafreen Mughal**
 GitHub: [@Aafreen-Mughal](https://github.com/Aafreen-Mughal)
